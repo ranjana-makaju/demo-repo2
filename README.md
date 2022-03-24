@@ -1,6 +1,3 @@
-# header
+# onprem-ansible-deploy
 
-put something
-
-## second header
-do something
+ansible-playbook site.yml -i hosts.yml --key-file key_file.pem

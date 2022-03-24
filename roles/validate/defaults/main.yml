@@ -1,0 +1,9 @@
+nexus_repo_root : https://nexusoss.stg.angelcloud.in/repository
+
+nexus_maven_angel_snapshots_repo: "{{ nexus_repo_root }}/maven-snapshots"
+nexus_maven_angel_releases_repo: "{{ nexus_repo_root }}/maven-releases"
+nexus_maven_central_releases_repo: "{{ nexus_repo_root }}/maven-central"
+
+
+systemd_service_user : app
+systemd_service_user_group : app

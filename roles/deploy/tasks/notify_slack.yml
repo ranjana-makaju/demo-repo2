@@ -1,0 +1,8 @@
+- name: Send deployment status
+  community.general.slack:
+    channel: "{{ slack_channel }}"
+    token: "{{ slack_token }}"
+    thread_id: "{{ slack_response['ts'] }}"
+    color: good
+    msg: "{{ slack_message }}"
+  ignore_errors: yes

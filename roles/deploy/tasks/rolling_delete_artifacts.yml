@@ -1,0 +1,36 @@
+- name: get all binaries
+  become: true
+  find:
+    paths: "{{ artifacts_root_path }}/{{ folder_name }}"
+    recurse: false
+  register: result
+
+- name: Sort build
+  become: true
+  set_fact:
+    binary_files: "{{ result.files|
+                  sort(attribute='mtime')|
+                  map(attribute='path')|
+                  list }}"
+
+
+- name: List all builds in {{ folder_name }}
+  debug:
+    var: file_name
+  loop: "{{ binary_files }}"
+  loop_control:
+    loop_var: file_name
+- name: List build to be removed by keeping 2 backup
+  debug:
+    var: file_name
+  loop: "{{ binary_files[0:-4] }}"
+  loop_control:
+    loop_var: file_name
+
+- name: removing old files
+  become: yes
+  file:
+    state: absent
+    path: "{{ item }}"
+  loop: "{{ binary_files[0:-2] }}"
+  

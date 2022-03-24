@@ -1,0 +1,40 @@
+- name: My playbook
+  hosts: all
+  serial: 20%
+  roles:
+    - role: validate
+      app_version: "1.0" 
+      artifacts:
+        - type: maven
+          name: app
+          group_id: "com.angel.test"
+          id: "spring-rest-hello-world"
+          repo: "{{ app_version.endswith('SNAPSHOT') | ternary(nexus_maven_angel_snapshots_repo, nexus_maven_angel_releases_repo) }}"
+          version: "{{ app_version }}"
+        - type: maven
+          name: prometheus
+          group_id: "io.prometheus.jmx"
+          id: "jmx_prometheus_javaagent"
+          repo: "{{ nexus_maven_central_releases_repo }}"
+          version: "0.16.1"      
+          
+    - role: deploy
+      app_version: "2.0.0-SNAPSHOT" 
+      #app_version: "1.0"
+      systemd_service:
+        service_name: hello-world
+        exec_start: "java -jar ${Args}"
+        healthcheck: "http://localhost:8080/books"
+      artifacts:
+        - type: maven
+          name: app
+          group_id: "com.angel.test"
+          id: "spring-rest-hello-world"
+          repo: "{{ app_version.endswith('SNAPSHOT') | ternary(nexus_maven_angel_snapshots_repo, nexus_maven_angel_releases_repo) }}"
+          version: "{{ app_version }}"
+        - type: maven
+          name: prometheus
+          group_id: "io.prometheus.jmx"
+          id: "jmx_prometheus_javaagent"
+          repo: "{{ nexus_maven_central_releases_repo }}"
+          version: "0.16.1"         

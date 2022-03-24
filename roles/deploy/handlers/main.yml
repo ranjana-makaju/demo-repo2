@@ -1,0 +1,34 @@
+- name: Stop service {{ systemd_service.service_name }}
+  become: true
+  become_method: sudo
+  systemd:
+    name: '{{ systemd_service.service_name }}'
+    state: stopped
+    enabled: yes 
+  listen: "reload service"
+
+- name: Get Service Status {{ systemd_service.service_name }}
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ systemd_service.service_name }}"
+  register: service_status 
+  listen: "reload service"
+
+- include_tasks: notify_slack.yml
+  vars:
+    slack_message: "Stopped Service. Status Code : {{ service_status.status.ExecMainStatus }}"
+  listen: "reload service"
+
+- name: Print exit code of the stopped service 
+  debug:
+    msg: "{{ service_status.status.ExecStart }}"
+  listen: "reload service"
+
+- name: Systemd reload and service restart
+  ansible.builtin.systemd:
+    daemon_reload: yes
+    enabled: yes
+    name: "{{ systemd_service.service_name }}"
+    state: restarted
+  become: true
+  listen: "reload service" 

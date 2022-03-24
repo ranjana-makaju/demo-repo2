@@ -1,0 +1,170 @@
+- name: Initial Threaded Slack message
+  community.general.slack:
+    channel: "{{ slack_channel }}"
+    token: "{{ slack_token }}"
+    msg: 'Host : {{ ansible_host }}'
+  register: slack_response
+
+- name: Ensure group app exists
+  ansible.builtin.group:
+    name: "{{ systemd_service_user_group }}"
+    state: present
+  become: true
+
+- name: Ensure the user app with a primary group of app exists
+  ansible.builtin.user:
+    name: "{{ systemd_service_user }}"
+    comment: App User
+    group: "{{ systemd_service_user_group }}"
+  become: true
+
+- name: Create systemd service for app
+  template:
+    src: "systemd.service.j2"
+    dest: "/etc/systemd/system/{{ systemd_service.service_name }}.service"
+    mode: 0664
+  become: true
+  register: service_creation
+  notify:
+    - reload service
+- include_tasks: notify_slack.yml
+  vars:
+    slack_message: "Systemd Service Creation state : {{ service_creation.state }}"
+
+
+- name: Ensure logs, artifact, config, data directory is present
+  become: true
+  ansible.builtin.file:
+    owner: "{{ systemd_service_user }}"
+    group: "{{ systemd_service_user_group }}"
+    path: "{{ item }}"
+    state: directory
+    mode: '0700'   
+  loop: 
+    - "{{ log_path }}"
+    - "{{ artifacts_root_path }}"
+    - "{{ config_path }}"
+    - "{{ data_path }}"
+  register: folders
+
+- name: Ensure subfolder artifact(s)
+  become: true
+  ansible.builtin.file:
+    owner: "{{ systemd_service_user }}"
+    group: "{{ systemd_service_user_group }}"
+    path: "{{ artifacts_root_path }}/{{ item }}"
+    state: directory
+    mode: '0700'   
+  loop: "{{ artifacts | map(attribute='name') | flatten  }}"
+
+  
+- name: Create env vars for the service
+  template:
+    owner: "{{ systemd_service_user }}"
+    group: "{{ systemd_service_user_group }}"
+    src: "EnvironmentFile.j2"
+    dest: "{{ systemd_service_environment_file }}"
+    mode: 0777
+  become: true
+  register: env_vars
+  notify:
+    - reload service    
+- include_tasks: notify_slack.yml
+  vars:
+    slack_message: "Created environment variables: {{ env_vars.path }}"
+
+- name: Download and link artifact(s)
+  become: true
+  block:
+    - name: Download artifact(s)
+      community.general.maven_artifact:
+        owner: "{{ systemd_service_user }}"
+        group: "{{ systemd_service_user_group }}"
+        mode: '0664'
+        group_id: "{{ item.group_id }}"
+        artifact_id: "{{ item.id }}"
+        version: "{{ item.version }}"
+        verify_checksum: always
+        repository_url: "{{ item.repo }}"
+        dest: "{{ artifacts_root_path }}/{{ item.name }}/{{ item.id }}-{{ item.version }}.jar"
+      when: item.type == "maven"
+      loop: "{{ artifacts }}"
+      register: download_artifacts
+
+    - name: Create a symbolic link to artifact(s)
+      ansible.builtin.file:
+        owner: "{{ systemd_service_user }}"
+        group: "{{ systemd_service_user_group }}"
+        mode: '0664'
+        src: "{{ artifacts_root_path }}/{{ item.name }}/{{ item.id }}-{{ item.version }}.jar"
+        dest: "/home/{{ systemd_service_user }}/{{ item.name }}.jar"
+        state: link
+      loop: "{{ artifacts }}"
+      
+  notify:
+    - reload service
+- include_tasks: notify_slack.yml
+  vars:
+    slack_message: "Download artifacts : \n{{ download_artifacts.msg }}"
+
+- name: Set timestamp
+  shell: "date \"+%F %H:%M:%S\""
+  register: before_restart    
+
+- name: Flush handlers
+  meta: flush_handlers
+  
+# Handlimg edge case, make sure service is in running state
+- name: Start service {{ systemd_service.service_name }}
+  become: true
+  become_method: sudo
+  systemd:
+    name: '{{ systemd_service.service_name }}'
+    state: started
+    enabled: yes 
+- include_tasks: notify_slack.yml
+  vars:
+    slack_message: "Starting Service"
+
+- name: Get service status and logs for {{ systemd_service.service_name }} 
+  become: true
+  block:
+  - name: Wait for active state
+    ansible.builtin.systemd:
+      name: "{{ systemd_service.service_name }}"
+    register: service_status_temp
+    until: service_status_temp.status.ActiveState == "active"
+    retries: 5
+    delay: 5 # Every 5 seconds
+  - name: Confirm that 200 OK response is returned
+    uri:
+      url: "{{ systemd_service.healthcheck }}" 
+    register: response
+    until: response.status is defined and response.status == 200
+    retries: 10 
+    delay: 5 # Every 5 seconds
+
+  rescue:
+    - name: Prevent supression of error
+      ansible.builtin.command: /bin/false
+
+  always:
+    - name: Print startup logs
+      shell: "journalctl -u {{ systemd_service.service_name }} --since \"{{ before_restart.stdout }}\" --no-pager"
+      register: logs
+    - debug: var=logs.stdout_lines
+
+- include_tasks: notify_slack.yml 
+  vars:
+    slack_message: "Service Status: {{ service_status_temp.status.ActiveState }}"
+
+- include_tasks: notify_slack.yml 
+  vars:
+    slack_message: "HTTP Status: {{ response.status }}"
+ 
+# Cleanup older artifacts
+- name: Rolling delete artifacts
+  include_tasks: rolling_delete_artifacts.yml
+  loop: "{{ artifacts | map(attribute='name') | flatten  }}"      
+  loop_control:
+    loop_var: folder_name

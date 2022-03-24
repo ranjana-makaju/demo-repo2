@@ -1,0 +1,17 @@
+- name: Download artifact(s)
+  community.general.maven_artifact:
+    group_id: "{{ item.group_id }}"
+    artifact_id: "{{ item.id }}"
+    version: "{{ item.version }}"
+    verify_checksum: always
+    repository_url: "{{ item.repo }}"
+    dest: "/tmp/{{ item.name }}-artifact"
+  when: item.type == "maven"
+  loop: "{{ artifacts }}"
+
+- name: Cleanup file
+  become: true
+  file:
+    path: "/tmp/{{ item.name }}-artifact"
+    state: absent
+  loop: "{{ artifacts }}"

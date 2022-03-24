@@ -1,0 +1,26 @@
+# {{ ansible_managed }}
+
+[Unit]
+Description="{{ systemd_service.description | default("Service for " + systemd_service.service_name) }}"
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec={{ systemd_service_restart_delay_sec }}
+
+EnvironmentFile={{ systemd_service_environment_file }}
+
+{% if systemd_service.working_directory is defined %}
+WorkingDirectory={{ systemd_service.working_directory }}
+{% endif -%}
+
+User={{ systemd_service_user }}
+Group={{ systemd_service_user_group }}
+
+ExecStart={{ systemd_service.exec_start }}
+
+TimeoutStopSec={{ systemd_service_timeout_stop_sec }}
+
+[Install]
+WantedBy=multi-user.target
