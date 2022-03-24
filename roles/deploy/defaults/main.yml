@@ -13,7 +13,7 @@ systemd_service_restart_delay_sec: 10
 
 #slack_channel : '#test-slack'
 slack_channel : '#test-slack-emoji'
-slack_token : xoxb-877123502210-3247889743409-y5CXRN8LinKsDlCvpZg2wanx
+#slack_token : xoxb-877123502210-3247889743409-y5CXRN8LinKsDlCvpZg2wanx
 
 
 artifacts_root_path: "/home/{{ systemd_service_user }}/artifacts"

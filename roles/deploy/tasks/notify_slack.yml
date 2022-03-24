@@ -2,7 +2,7 @@
   community.general.slack:
     channel: "{{ slack_channel }}"
     token: "{{ slack_token }}"
-    thread_id: "{{ slack_response['ts'] }}"
+    thread_id: "{{ slack_ts }}"
     color: good
     msg: "{{ slack_message }}"
   ignore_errors: yes
