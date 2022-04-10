@@ -4,5 +4,5 @@
     token: "{{ slack_token }}"
     thread_id: "{{ slack_ts }}"
     color: good
-    msg: "{{ slack_message }}"
+    msg: "[{{ ansible_host }}]:\n{{ slack_message }}"
   ignore_errors: yes

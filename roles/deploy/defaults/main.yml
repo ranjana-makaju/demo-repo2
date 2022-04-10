@@ -11,10 +11,8 @@ systemd_service_environment_file: "/etc/systemd/{{ systemd_service.service_name 
 systemd_service_timeout_stop_sec: 90
 systemd_service_restart_delay_sec: 10
 
-#slack_channel : '#test-slack'
-slack_channel : '#test-slack-emoji'
-#slack_token : xoxb-877123502210-3247889743409-y5CXRN8LinKsDlCvpZg2wanx
-
+slack_channel: '#test-slack-emoji'
+slack_token: xoxb-877123502210-3247889743409-4m3q9FcenzXjGx1xF80arnxA
 
 artifacts_root_path: "/home/{{ systemd_service_user }}/artifacts"
 log_path: "/var/log/{{ systemd_service_user }}"

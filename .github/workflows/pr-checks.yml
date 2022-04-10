@@ -1,82 +1,28 @@
-name: Test run
+name: slack-notification
 
 on: [push]
-
 
 env:
   github_org: 'angel-one'
   ansible_action_repo_tag: 4
   PY_COLORS: '1'
   ANSIBLE_FORCE_COLOR: '1'
-  slack-channel: C036QJYNQ5C
 
 jobs:
-  build:
-    runs-on: aws-ec2
-    steps:
-      - name: Notify slack channel
-        uses: archive/github-actions-slack@v2.0.0
-        id: notify
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          slack-channel: ${{ env.slack-channel }}
-          slack-text: Starting Deployment for "${{ github.repository }}"
-       
-      - name: checkout playbook
+  slack-notifications:
+    runs-on: ubuntu-latest
+    name: Sends a message to Slack when a push, a pull request or an issue is made
+    steps:    
+      - name: Clone Self
         uses: actions/checkout@v2
 
-      - name: copy ansible actions
-        uses: actions/checkout@v2
+      - name: copy file via ssh password
+        uses: appleboy/scp-action@master
         with:
-          repository: ${{ env.github_org }}/sre-ansible-action
-          ref: ${{ env.ansible_action_repo_tag }}
-          token: ${{ secrets.SRE_GIT_READ_TOKEN }}
-          path: '.github/actions/ansible'
-          clean: 'false'
+          host: "192.168.117.246"
+          username: ec2-user
+          key: ${{ secrets.SSH_EC2_USER }}
+          source: "roles"
+          target: "/home/"
 
-      #run ansible action
-      - name: run custom ansible action
-        id: custom
-        uses: ./.github/actions/ansible
-        with:
-          input-ansible-key: ${{ secrets.TEST_ANSIBLE_SSH_KEY }}
-          input-ansible-action: 'run'
-
-      - name: status of custom action
-        run: echo "${{ steps.custom.outputs.ansible-status }}"
-
-      - name: Notify Succeed status
-        if: steps.custom.outputs.ansible-status == 0 
-        uses: archive/github-actions-slack@v2.0.0
-        id: notify_status
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          slack-channel: ${{ env.slack-channel }}
-          slack-text: "Deployment completed in ${{ github.repository }} :large_green_circle:"
-          slack-optional-icon_emoji: ":large_green_circle:"
-         
-          
-      
-      - name: Notify Failure status
-        if: steps.custom.outputs.ansible-status != 0  
-        uses: archive/github-actions-slack@v2.0.0
-        id: fail_status     
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          slack-channel: ${{ env.slack-channel }}
-          slack-text: "Failed Deployment in ${{ github.repository }} :x:"
-          slack-optional-icon_emoji: ":x:"
-          
-          
-      
-      - name: Notify job failure
-        if: ${{ failure() }}
-        uses: archive/github-actions-slack@v2.0.0
-        id: job_fail_status     
-        with:
-          slack-bot-user-oauth-access-token: ${{ secrets.SLACK_BOT_USER_OAUTH_ACCESS_TOKEN }}
-          slack-channel: ${{ env.slack-channel }}
-          slack-text: "Failed Deployment in ${{ github.repository }} :x:" 
-          slack-optional-icon_emoji: ":x:"
-         
-      
+ 
