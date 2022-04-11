@@ -23,8 +23,8 @@ jobs:
           tar -cvf deploy.tar ../build/
       - name: View the information of the pusher
         run: |
-          echo "The name of the pusher: ${{ github.event.pusher.name }}"
-          echo "The email of the pusher: ${{ github.event.pusher.email }}"
+          echo "Initiator: ${{ github.event.pusher.name }}"
+         
       - name: copy file via ssh password
         uses: appleboy/scp-action@master
         with:
